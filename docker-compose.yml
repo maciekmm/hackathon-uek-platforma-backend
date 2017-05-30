@@ -4,17 +4,13 @@ services:
     build: .
     ports:
       - "3000:3000"
-    env_file:
-      - ./credentials.env
     links:
       - database
-    depends_on:
-      - database
+    env_file:
+      - ./credentials.env
   database:
     restart: always
     image: postgres:alpine
-    ports:
-      - "5432:5432"
     env_file:
       - ./credentials.env
     volumes:

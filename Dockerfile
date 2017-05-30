@@ -3,7 +3,7 @@ FROM golang:alpine AS build-env
 ADD . /go/src/github.com/maciekmm/uek-bruschetta
 WORKDIR /go/src/github.com/maciekmm/uek-bruschetta
 # Install all dependencies
-RUN apk add --no-cache git
+RUN apk add git
 RUN go get -v ./...
 # Build binary
 RUN go build -o bruschetta
