@@ -12,8 +12,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/lib/pq"
 	"github.com/maciekmm/uek-bruschetta/controllers"
+	"github.com/maciekmm/uek-bruschetta/models"
 )
 
 func main() {
@@ -34,7 +37,7 @@ func main() {
 }
 
 type Application struct {
-	Database *sql.DB
+	Database *gorm.DB
 	Logger   *log.Logger
 	router   *mux.Router
 }
@@ -64,6 +67,13 @@ out:
 		}
 	}
 
+	// auto-migrating models
+	a.Database, err = gorm.Open("postgres", con)
+	if err != nil {
+		return err
+	}
+
+	a.Database.AutoMigrate(&models.User{}, &models.Event{}, &models.Interaction{}, &models.Subscription{}, &models.Notification{})
 	return nil
 }
 
@@ -76,5 +86,12 @@ func (a *Application) setupRoutes() {
 }
 
 func (a *Application) serve() error {
-	return http.ListenAndServe(":3000", a.router)
+	server := http.Server{
+		Addr:           ":3000",
+		Handler:        a.router,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+	return server.ListenAndServe()
 }

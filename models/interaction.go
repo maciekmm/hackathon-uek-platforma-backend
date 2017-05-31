@@ -1,10 +1,15 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/jinzhu/gorm"
+)
 
 type Interaction struct {
-	ID             uint64    `json:"id,omitempty" db:"id"`
-	Timestamp      time.Time `json:"timestamp,omitempty" db:"timestamp"`
-	UserID         uint64    `json:"user_id,omitempty" db:"user_id"`
-	NotificationID uint64    `json:"notification_id,omitempty" db:"notification_id"`
+	gorm.Model
+	Timestamp      time.Time `json:"timestamp,omitempty"`
+	UserID         uint      `json:"user_id,omitempty"`
+	User           User      `json:"_"`
+	NotificationID uint      `json:"notification_id,omitempty"`
 }
