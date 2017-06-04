@@ -31,6 +31,7 @@ func (a *Account) Register(router *mux.Router) {
 func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	// decode request
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
 		(&ErrorResponse{
@@ -106,6 +107,7 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 func (a *Account) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	// decode request
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
 		(&ErrorResponse{
