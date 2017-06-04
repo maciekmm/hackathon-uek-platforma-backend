@@ -4,7 +4,7 @@ import "github.com/jinzhu/gorm"
 
 type Subscription struct {
 	gorm.Model
-	User            User                 `json:"_"`
+	User            User                 `json:"-"`
 	UserID          uint                 `json:"user_id,omitempty"`
 	MinimumPriority NotificationPriority `json:"priority,omitempty"`
 	Categories      string               `json:"categories,omitempty"`

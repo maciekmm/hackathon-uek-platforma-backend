@@ -81,8 +81,8 @@ func (a *Application) setupRoutes() {
 	// setup routes
 	a.Logger.Println("setting up routes")
 	a.router = mux.NewRouter()
-	accountController := &controllers.Account{}
-	accountController.Register(a.router.PathPrefix("/account/").Subrouter())
+	accountController := &controllers.Account{Logger: a.Logger, Database: a.Database}
+	accountController.Register(a.router.PathPrefix("/accounts/").Methods("POST").Subrouter())
 }
 
 func (a *Application) serve() error {
