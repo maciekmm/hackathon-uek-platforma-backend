@@ -1,4 +1,4 @@
-package utils
+package controllers
 
 import (
 	jwt "github.com/dgrijalva/jwt-go"
@@ -7,9 +7,5 @@ import (
 
 type AuthClaims struct {
 	jwt.StandardClaims
-	User models.User
-}
-
-type JWT struct {
-	Token string `json:"token"`
+	User *models.User
 }
