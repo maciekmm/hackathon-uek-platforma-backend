@@ -41,14 +41,14 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
-	subscription.UserId = claims.User.ID
+	subscription.UserID = claims.User.ID
 
 	errors := []error{}
 	if len(subscription.Channel) == 0 {
 		errors = append(errors, ErrSubscriptionChannelInvalid)
 	}
 
-	if len(subscription.ChannelId) == 0 {
+	if len(subscription.ChannelID) == 0 {
 		errors = append(errors, ErrSubscriptionChannelIdInvalid)
 	}
 
@@ -92,8 +92,8 @@ func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subscription.UserId = claims.User.ID
-	if res := s.Database.Set("gorm:delete_option", "OPTION (OPTIMIZE FOR UNKNOWN)").Where("(id = ?) OR (user_id = ? AND channel = ?)", subscription.ID, claims.User.ID, subscription.Channel).Delete(&models.Subscription{}); res.Error != nil {
+	subscription.UserID = claims.User.ID
+	if res := s.Database.Unscoped().Where("(id = ?) OR (user_id = ? AND channel = ?)", subscription.ID, claims.User.ID, subscription.Channel).Delete(&models.Subscription{}); res.Error != nil {
 		(&middleware.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
