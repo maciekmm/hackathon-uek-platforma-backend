@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	ErrUserEmailInvalid    = errors.New("user: email invalid")
-	ErrUserPasswordInvalid = errors.New("user: password invalid")
-	ErrUserNameInvalid     = errors.New("user: name invalid")
-	ErrUserEmailRegistered = errors.New("user: mail already registered")
-	ErrUserEmailNotFound   = errors.New("user: email not found")
-	ErrUserUnknown         = errors.New("user: unknown error occured")
+	ErrUserEmailInvalid    = errors.New("email invalid")
+	ErrUserPasswordInvalid = errors.New("password invalid")
+	ErrUserNameInvalid     = errors.New("name invalid")
+	ErrUserEmailRegistered = errors.New("mail already registered")
+	ErrUserEmailNotFound   = errors.New("email not found")
+	ErrUserUnknown         = errors.New("unknown error occured")
 )
 
 type jwtResponse struct {
