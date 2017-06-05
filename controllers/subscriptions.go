@@ -80,7 +80,27 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
+	_, claims, _ := middleware.ParseToken(r)
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	subscription := models.Subscription{}
+	if err := decoder.Decode(&subscription); err != nil {
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrSubscriptionsUnknown.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusBadRequest, rw)
+		return
+	}
 
+	subscription.UserId = claims.User.ID
+	if res := s.Database.Set("gorm:delete_option", "OPTION (OPTIMIZE FOR UNKNOWN)").Where("(id = ?) OR (user_id = ? AND channel = ?)", subscription.ID, claims.User.ID, subscription.Channel).Delete(&models.Subscription{}); res.Error != nil {
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrSubscriptionsUnknown.Error()},
+			DebugErrors: []string{res.Error.Error()},
+		}).Write(http.StatusInternalServerError, rw)
+		return
+	}
+	rw.WriteHeader(200)
 }
 
 func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
