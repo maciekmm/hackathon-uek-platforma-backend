@@ -18,9 +18,12 @@ import (
 )
 
 var (
-	ErrUserEmailInvalid    = errors.New("email invalid")
-	ErrUserPasswordInvalid = errors.New("password invalid")
-	ErrUserNameInvalid     = errors.New("name invalid")
+	ErrUserEmailInvalid    = errors.New("user: email invalid")
+	ErrUserPasswordInvalid = errors.New("user: password invalid")
+	ErrUserNameInvalid     = errors.New("user: name invalid")
+	ErrUserEmailRegistered = errors.New("user: mail already registered")
+	ErrUserEmailNotFound   = errors.New("user: email not found")
+	ErrUserUnknown         = errors.New("user: unknown error occured")
 )
 
 type jwtResponse struct {
@@ -60,7 +63,8 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
 		(&ErrorResponse{
-			Errors: []string{fmt.Sprintf("could not decode request body: %s", err.Error())},
+			Errors:      []string{ErrUserUnknown.Error()},
+			DebugErrors: []string{fmt.Sprintf("could not decode request body: %s", err.Error())},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
@@ -90,9 +94,7 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	res := a.Database.First(&existingUser, "email = ?", user.Email)
 
 	if !res.RecordNotFound() {
-		(&ErrorResponse{
-			Errors: []string{"account with this email already exists"},
-		}).Write(http.StatusBadRequest, rw)
+		NewErrorResponse(ErrUserEmailRegistered).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -100,7 +102,8 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	pwd, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		(&ErrorResponse{
-			Errors: []string{fmt.Sprintf("could not encrypt user's password: %s", err)},
+			Errors:      []string{ErrUserUnknown.Error()},
+			DebugErrors: []string{fmt.Sprintf("could not encrypt user's password: %s", err)},
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
@@ -109,7 +112,8 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 
 	if err := a.Database.Create(&user).Error; err != nil {
 		(&ErrorResponse{
-			Errors: []string{fmt.Sprintf("could not register username, db error: %s", err)},
+			Errors:      []string{ErrUserUnknown.Error()},
+			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
@@ -121,7 +125,8 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		(&ErrorResponse{
-			Errors: []string{err.Error()},
+			Errors:      []string{ErrUserUnknown.Error()},
+			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
@@ -141,25 +146,24 @@ func (a *Account) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
 		(&ErrorResponse{
-			Errors: []string{fmt.Sprintf("could not decode request body: %s", err.Error())},
+			Errors:      []string{ErrUserUnknown.Error()},
+			DebugErrors: []string{fmt.Sprintf("could not decode request body: %s", err.Error())},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
 
-	errors := []string{}
+	errors := []error{}
 
 	if len(user.Email) == 0 {
-		errors = append(errors, ErrUserEmailInvalid.Error())
+		errors = append(errors, ErrUserEmailInvalid)
 	}
 
 	if len(user.Password) == 0 {
-		errors = append(errors, ErrUserPasswordInvalid.Error())
+		errors = append(errors, ErrUserPasswordInvalid)
 	}
 
 	if len(errors) != 0 {
-		(&ErrorResponse{
-			Errors: errors,
-		}).Write(http.StatusBadRequest, rw)
+		NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -167,23 +171,20 @@ func (a *Account) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	res := a.Database.First(&dbUser, "email = ?", user.Email)
 
 	if res.RecordNotFound() {
-		(&ErrorResponse{
-			Errors: []string{fmt.Sprintf("wrong user/password combination")},
-		}).Write(http.StatusBadRequest, rw)
+		NewErrorResponse(ErrUserEmailNotFound).Write(http.StatusBadRequest, rw)
 		return
 	}
 
 	if res.Error != nil {
 		(&ErrorResponse{
-			Errors: []string{fmt.Sprintf("error occured while querying the database: %s", res.Error.Error())},
+			Errors:      []string{ErrUserUnknown.Error()},
+			DebugErrors: []string{fmt.Sprintf("error occured while querying the database", res.Error.Error())},
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password)); err != nil {
-		(&ErrorResponse{
-			Errors: []string{fmt.Sprintf("invalid password")},
-		}).Write(http.StatusBadRequest, rw)
+		NewErrorResponse(ErrUserPasswordInvalid).Write(http.StatusBadRequest, rw)
 		return
 	}
 
