@@ -4,17 +4,17 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type UserRole string
+type UserRole int
 
 const (
-	RoleAdmin UserRole = "admin"
-	RoleUser  UserRole = "user"
+	RoleUser UserRole = iota
+	RoleAdmin
 )
 
 type User struct {
 	gorm.Model
 	Name     string   `json:"name,omitempty"`
 	Email    string   `json:"email" gorm:"index"`
-	Role     UserRole `json:"role" gorm:"default:'user'"`
+	Role     UserRole `json:"role" gorm:"default:0"`
 	Password string   `json:"password,omitempty"`
 }

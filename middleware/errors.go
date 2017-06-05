@@ -1,4 +1,4 @@
-package controllers
+package middleware
 
 import (
 	"encoding/json"

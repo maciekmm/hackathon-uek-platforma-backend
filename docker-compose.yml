@@ -3,7 +3,7 @@ services:
   bruschetta:
     build: .
     ports:
-      - "3000:3000"
+      - "80:3000"
     links:
       - database
     env_file:

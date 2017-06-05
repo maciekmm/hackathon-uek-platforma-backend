@@ -7,5 +7,5 @@ const (
 )
 
 type Channel interface {
-	Send(Subscription) error
+	Send(Event, Subscription) error
 }

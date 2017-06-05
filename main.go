@@ -16,6 +16,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/lib/pq"
 	"github.com/maciekmm/uek-bruschetta/controllers"
+	"github.com/maciekmm/uek-bruschetta/controllers/channels"
 	"github.com/maciekmm/uek-bruschetta/models"
 )
 
@@ -73,7 +74,7 @@ out:
 		return err
 	}
 
-	a.Database.AutoMigrate(&models.User{}, &models.Event{}, &models.Interaction{}, &models.Subscription{}, &models.Notification{})
+	a.Database.AutoMigrate(&models.User{}, &models.Event{}, &models.Interaction{}, &models.Subscription{})
 	return nil
 }
 
@@ -81,8 +82,18 @@ func (a *Application) setupRoutes() {
 	// setup routes
 	a.Logger.Println("setting up routes")
 	a.router = mux.NewRouter()
-	accountController := &controllers.Account{Logger: a.Logger, Database: a.Database}
+
+	// accounts
+	accountController := &controllers.Accounts{Database: a.Database}
 	accountController.Register(a.router.PathPrefix("/accounts/").Methods("POST").Subrouter())
+
+	// events
+	eventsController := &controllers.Events{Database: a.Database}
+	eventsController.Register(a.router.PathPrefix("/events/").Subrouter())
+
+	// channels
+	messengerController := &channels.Messenger{}
+	messengerController.Register(a.router.PathPrefix("/channels/messenger/").Subrouter())
 }
 
 func (a *Application) serve() error {

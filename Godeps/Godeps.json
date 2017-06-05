@@ -2,6 +2,9 @@
 	"ImportPath": "github.com/maciekmm/uek-bruschetta",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/dgrijalva/jwt-go",
@@ -41,6 +44,16 @@
 			"ImportPath": "github.com/lib/pq/oid",
 			"Comment": "go1.0-cutoff-166-g2704adc",
 			"Rev": "2704adc878c21e1329f46f6e56a1c387d788ff94"
+		},
+		{
+			"ImportPath": "github.com/maciekmm/messenger-platform-go-sdk",
+			"Comment": "v4.5-9-g71a3a43",
+			"Rev": "71a3a43148e3c5a2d20ceb133aed0faefd92ed34"
+		},
+		{
+			"ImportPath": "github.com/maciekmm/messenger-platform-go-sdk/template",
+			"Comment": "v4.5-9-g71a3a43",
+			"Rev": "71a3a43148e3c5a2d20ceb133aed0faefd92ed34"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/bcrypt",

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"github.com/maciekmm/uek-bruschetta/middleware"
 	"github.com/maciekmm/uek-bruschetta/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -23,29 +23,28 @@ var (
 	ErrUserNameInvalid     = errors.New("name invalid")
 	ErrUserEmailRegistered = errors.New("mail already registered")
 	ErrUserEmailNotFound   = errors.New("email not found")
-	ErrUserUnknown         = errors.New("unknown error occured")
+	ErrAccountsUnknown     = errors.New("unknown error occured")
 )
 
 type jwtResponse struct {
 	Token string `json:"token"`
 }
 
-type Account struct {
-	Logger   *log.Logger
+type Accounts struct {
 	Database *gorm.DB
 }
 
-func (a *Account) Register(router *mux.Router) {
+func (a *Accounts) Register(router *mux.Router) {
 	postRouter := router
 	postRouter.HandleFunc("/register", a.HandleRegister)
 	postRouter.HandleFunc("/login", a.HandleLogin)
 }
 
-func (a *Account) generateJWT(user *models.User) (string, error) {
+func (a *Accounts) generateJWT(user *models.User) (string, error) {
 	// generate JWT
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, AuthClaims{
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, middleware.AuthClaims{
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 24 * 30).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 24 * 7).Unix(),
 		},
 		User: user,
 	})
@@ -56,15 +55,15 @@ func (a *Account) generateJWT(user *models.User) (string, error) {
 	return tok, nil
 }
 
-func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
+func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	// decode request
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
-		(&ErrorResponse{
-			Errors:      []string{ErrUserUnknown.Error()},
-			DebugErrors: []string{fmt.Sprintf("could not decode request body: %s", err.Error())},
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsUnknown.Error(), fmt.Sprintf("could not decode request body")},
+			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
@@ -82,7 +81,7 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errors) != 0 {
-		(&ErrorResponse{
+		(&middleware.ErrorResponse{
 			Errors: errors,
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -94,15 +93,15 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	res := a.Database.First(&existingUser, "email = ?", user.Email)
 
 	if !res.RecordNotFound() {
-		NewErrorResponse(ErrUserEmailRegistered).Write(http.StatusBadRequest, rw)
+		middleware.NewErrorResponse(ErrUserEmailRegistered).Write(http.StatusBadRequest, rw)
 		return
 	}
 
 	// encrypt password
 	pwd, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		(&ErrorResponse{
-			Errors:      []string{ErrUserUnknown.Error()},
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{fmt.Sprintf("could not encrypt user's password: %s", err)},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -111,8 +110,8 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	user.Password = string(pwd)
 
 	if err := a.Database.Create(&user).Error; err != nil {
-		(&ErrorResponse{
-			Errors:      []string{ErrUserUnknown.Error()},
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -124,8 +123,8 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	tok, err := a.generateJWT(&user)
 
 	if err != nil {
-		(&ErrorResponse{
-			Errors:      []string{ErrUserUnknown.Error()},
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -139,15 +138,15 @@ func (a *Account) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	rw.Write(body)
 }
 
-func (a *Account) HandleLogin(rw http.ResponseWriter, r *http.Request) {
+func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	// decode request
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
-		(&ErrorResponse{
-			Errors:      []string{ErrUserUnknown.Error()},
-			DebugErrors: []string{fmt.Sprintf("could not decode request body: %s", err.Error())},
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsUnknown.Error(), fmt.Sprintf("could not decode request body")},
+			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
@@ -163,7 +162,7 @@ func (a *Account) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errors) != 0 {
-		NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
+		middleware.NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -171,20 +170,20 @@ func (a *Account) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	res := a.Database.First(&dbUser, "email = ?", user.Email)
 
 	if res.RecordNotFound() {
-		NewErrorResponse(ErrUserEmailNotFound).Write(http.StatusBadRequest, rw)
+		middleware.NewErrorResponse(ErrUserEmailNotFound).Write(http.StatusBadRequest, rw)
 		return
 	}
 
 	if res.Error != nil {
-		(&ErrorResponse{
-			Errors:      []string{ErrUserUnknown.Error()},
-			DebugErrors: []string{fmt.Sprintf("error occured while querying the database", res.Error.Error())},
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsUnknown.Error()},
+			DebugErrors: []string{fmt.Sprintf("error occured while querying the database: %s", res.Error.Error())},
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password)); err != nil {
-		NewErrorResponse(ErrUserPasswordInvalid).Write(http.StatusBadRequest, rw)
+		middleware.NewErrorResponse(ErrUserPasswordInvalid).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -193,7 +192,7 @@ func (a *Account) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	// generate JWT
 	tok, err := a.generateJWT(&dbUser)
 	if err != nil {
-		(&ErrorResponse{
+		(&middleware.ErrorResponse{
 			Errors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
