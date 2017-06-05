@@ -70,6 +70,7 @@ out:
 
 	// auto-migrating models
 	a.Database, err = gorm.Open("postgres", con)
+	a.Database.SetLogger(a.Logger)
 	if err != nil {
 		return err
 	}
@@ -90,6 +91,10 @@ func (a *Application) setupRoutes() {
 	// events
 	eventsController := &controllers.Events{Database: a.Database}
 	eventsController.Register(a.router.PathPrefix("/events/").Subrouter())
+
+	// subscriptions
+	subscriptionsController := &controllers.Subscriptions{Database: a.Database}
+	subscriptionsController.Register(a.router.PathPrefix("/subscriptions/").Subrouter())
 
 	// channels
 	messengerController := &channels.Messenger{}
