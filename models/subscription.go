@@ -2,6 +2,8 @@ package models
 
 import "github.com/jinzhu/gorm"
 
+type ChannelType string
+
 type Subscription struct {
 	gorm.Model
 	UserID          uint          `json:"user_id,omitempty"`

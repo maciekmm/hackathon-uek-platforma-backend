@@ -36,8 +36,8 @@ type Accounts struct {
 
 func (a *Accounts) Register(router *mux.Router) {
 	postRouter := router
-	postRouter.HandleFunc("/register", a.HandleRegister)
-	postRouter.HandleFunc("/login", a.HandleLogin)
+	postRouter.HandleFunc("/register", a.HandleRegister).Methods(http.MethodPost)
+	postRouter.HandleFunc("/login", a.HandleLogin).Methods(http.MethodPost)
 }
 
 func (a *Accounts) generateJWT(user *models.User) (string, error) {
@@ -86,6 +86,9 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
+
+	// uncomment later, good for testing purposes now
+	// user.Role = models.RoleUser
 
 	// check if user already exists
 	var existingUser models.User

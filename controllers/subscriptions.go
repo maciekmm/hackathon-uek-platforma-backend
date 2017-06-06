@@ -80,7 +80,8 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
-	_, claims, _ := middleware.ParseToken(r)
+	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
+
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	subscription := models.Subscription{}
@@ -92,8 +93,8 @@ func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subscription.UserID = claims.User.ID
-	if res := s.Database.Unscoped().Where("(id = ?) OR (user_id = ? AND channel = ?)", subscription.ID, claims.User.ID, subscription.Channel).Delete(&models.Subscription{}); res.Error != nil {
+	subscription.UserID = user.ID
+	if res := s.Database.Unscoped().Where("(id = ?) OR (user_id = ? AND channel = ?)", subscription.ID, user.ID, subscription.Channel).Delete(&models.Subscription{}); res.Error != nil {
 		(&middleware.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
@@ -104,9 +105,10 @@ func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
-	_, claims, _ := middleware.ParseToken(r)
+	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
+
 	subs := []models.Subscription{}
-	if res := s.Database.Where("user_id = ?", claims.User.ID).Find(&subs); res.Error != nil {
+	if res := s.Database.Where("user_id = ?", user.ID).Find(&subs); res.Error != nil {
 		(&middleware.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},

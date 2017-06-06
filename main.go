@@ -15,8 +15,8 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/lib/pq"
+	"github.com/maciekmm/uek-bruschetta/channels"
 	"github.com/maciekmm/uek-bruschetta/controllers"
-	"github.com/maciekmm/uek-bruschetta/controllers/channels"
 	"github.com/maciekmm/uek-bruschetta/models"
 )
 
@@ -29,8 +29,6 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	app.setupRoutes()
-
 	err = app.serve()
 	if err != nil {
 		logger.Fatal(err)
@@ -38,9 +36,10 @@ func main() {
 }
 
 type Application struct {
-	Database *gorm.DB
-	Logger   *log.Logger
-	router   *mux.Router
+	Database           *gorm.DB
+	Logger             *log.Logger
+	ChannelCoordinator *channels.Coordinator
+	router             *mux.Router
 }
 
 func (a *Application) init() error {
@@ -76,20 +75,22 @@ out:
 	}
 
 	a.Database.AutoMigrate(&models.User{}, &models.Event{}, &models.Interaction{}, &models.Subscription{})
-	return nil
-}
 
-func (a *Application) setupRoutes() {
+	// setup channel coordinator
+	messenger := &channels.Messenger{}
+	a.ChannelCoordinator = channels.NewCoordinator(a.Logger, a.Database, messenger)
+	go a.ChannelCoordinator.Start()
+
 	// setup routes
 	a.Logger.Println("setting up routes")
 	a.router = mux.NewRouter()
 
 	// accounts
 	accountController := &controllers.Accounts{Database: a.Database}
-	accountController.Register(a.router.PathPrefix("/accounts/").Methods("POST").Subrouter())
+	accountController.Register(a.router.PathPrefix("/accounts/").Subrouter())
 
 	// events
-	eventsController := &controllers.Events{Database: a.Database}
+	eventsController := &controllers.Events{Database: a.Database, Coordinator: a.ChannelCoordinator}
 	eventsController.Register(a.router.PathPrefix("/events/").Subrouter())
 
 	// subscriptions
@@ -97,8 +98,8 @@ func (a *Application) setupRoutes() {
 	subscriptionsController.Register(a.router.PathPrefix("/subscriptions/").Subrouter())
 
 	// channels
-	messengerController := &channels.Messenger{}
-	messengerController.Register(a.router.PathPrefix("/channels/messenger/").Subrouter())
+	messenger.Register(a.router.PathPrefix("/channels/messenger/").Subrouter())
+	return nil
 }
 
 func (a *Application) serve() error {

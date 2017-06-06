@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"github.com/maciekmm/uek-bruschetta/channels"
 	"github.com/maciekmm/uek-bruschetta/middleware"
 	"github.com/maciekmm/uek-bruschetta/models"
 )
@@ -21,7 +22,8 @@ var (
 )
 
 type Events struct {
-	Database *gorm.DB
+	Database    *gorm.DB
+	Coordinator *channels.Coordinator
 }
 
 func (e *Events) Register(router *mux.Router) {
@@ -48,24 +50,27 @@ func (s *Events) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 	}
 	event.UserID = user.ID
 
-	errors := []error{}
+	// verify completeness of provided model
+	errs := []error{}
 	if len(event.Description) == 0 {
-		errors = append(errors, ErrEventDescriptionInvalid)
+		errs = append(errs, ErrEventDescriptionInvalid)
 	}
 	if len(event.Name) == 0 {
-		errors = append(errors, ErrEventNameInvalid)
+		errs = append(errs, ErrEventNameInvalid)
 	}
 	if len(event.NotificationMessage) == 0 {
-		errors = append(errors, ErrEventNotificationMessageInvalid)
+		errs = append(errs, ErrEventNotificationMessageInvalid)
 	}
 
-	if len(errors) > 0 {
-		middleware.NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
+	if len(errs) > 0 {
+		middleware.NewErrorResponse(errs...).Write(http.StatusBadRequest, rw)
 		return
 	}
 
 	dbEvent := models.Event{}
 	res := s.Database.Create(&event)
+
+	// update if record already exists, this should be done using PATCH or PUT methods, but it's easier to do it this way
 	if !res.RecordNotFound() {
 		if res := s.Database.Model(&dbEvent).Updates(&event); res.Error != nil {
 			(&middleware.ErrorResponse{
@@ -83,6 +88,15 @@ func (s *Events) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	if err := s.Coordinator.Send(&event); err != nil {
+		(&middleware.ErrorResponse{
+			Errors:      []string{errors.New("event was added, but sending notifications failed").Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusMultiStatus, rw)
+		return
+	}
+
 	rw.WriteHeader(http.StatusOK)
 }
 
