@@ -1,18 +1,11 @@
-# Setup build environment
-FROM golang:alpine AS build-env
-ADD . /go/src/github.com/maciekmm/uek-bruschetta
-WORKDIR /go/src/github.com/maciekmm/uek-bruschetta
-# Install all dependencies
-# Build binary
-RUN go build -o bruschetta
+FROM golang:1.8
 
-# Create minimal image
-FROM alpine
-# Copy sources + binary
-# TODO: only copy assets and templates (?)
-COPY --from=build-env /go/src/github.com/maciekmm/uek-bruschetta/ /app/
-WORKDIR /app/
-# Expose port
+WORKDIR /go/src/github.com/maciekmm/uek-bruschetta
+COPY . .
+
+RUN go-wrapper download   # "go get -d -v ./..."
+RUN go-wrapper install    # "go install -v ./..."
+
 EXPOSE 3000
-# Run the application
-ENTRYPOINT ./bruschetta
+
+CMD ["go-wrapper", "run"]
