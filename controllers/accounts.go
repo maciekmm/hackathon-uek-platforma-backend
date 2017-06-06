@@ -212,7 +212,7 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Accounts) HandleRefresh(rw http.ResponseWriter, r *http.Request) {
-	_, claims, err := middleware.ParseToken(r)
+	tok, claims, err := middleware.ParseToken(r)
 	if err != nil {
 		(&middleware.ErrorResponse{
 			Errors:      []string{ErrAccountsParsingError.Error()},
@@ -221,7 +221,7 @@ func (a *Accounts) HandleRefresh(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ve, ok := err.(*jwt.ValidationError); !ok || ve.Errors&jwt.ValidationErrorExpired == 0 {
+	if ve, ok := err.(*jwt.ValidationError); !tok.Valid && (!ok || ve.Errors&jwt.ValidationErrorExpired == 0) {
 		(&middleware.ErrorResponse{
 			Errors:      []string{ErrAccountsParsingError.Error()},
 			DebugErrors: []string{err.Error()},
