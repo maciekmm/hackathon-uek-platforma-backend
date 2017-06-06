@@ -1,7 +1,6 @@
 package channels
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/gorilla/mux"
@@ -28,7 +27,6 @@ func (m *Messenger) Register(router *mux.Router) {
 		AppSecret:   os.Getenv("FB_APP_SECRET"),
 		AccessToken: os.Getenv("FB_ACCESS_TOKEN"),
 	}
-	m.messenger.Authentication = m.AuthenticationHandler
 
 	if os.Getenv("DEBUG") == "TRUE" {
 		m.messenger.Debug = messenger.DebugAll
@@ -45,22 +43,9 @@ func (m *Messenger) Send(sub *models.Subscription, event *models.Event) error {
 		ImageURL: event.Image,
 		Subtitle: event.NotificationMessage,
 		Buttons: []template.Button{
-			template.NewWebURLButton("Zobacz więcej", "https://google.com"),
-			template.NewWebURLButton("JP2", "https://en.wikipedia.org/wiki/Pope_John_Paul_II"),
+			template.NewWebURLButton("Zobacz więcej", "https://margherita.xememah.com/#/event/id"),
 		},
 	})
 	_, err := m.messenger.SendMessage(mq)
 	return err
-}
-
-func (m *Messenger) AuthenticationHandler(event messenger.Event, opts messenger.MessageOpts, msg *messenger.Optin) {
-	profile, err := m.messenger.GetProfile(opts.Sender.ID)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	_, err = m.messenger.SendSimpleMessage(opts.Sender.ID, fmt.Sprintf("Hello, %s %s", profile.FirstName, profile.LastName))
-	if err != nil {
-		fmt.Println(err)
-	}
 }

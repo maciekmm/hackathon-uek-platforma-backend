@@ -123,8 +123,13 @@ func (s *Events) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Events) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
 	events := []models.Event{}
-	if res := s.Database.Find(&events); res.Error != nil {
+	res := s.Database
+	if user.Role != models.RoleAdmin {
+		res = res.Where("(department IS NULL OR department = ?) AND (year IS NULL OR year = ?)", user.Department, user.Year)
+	}
+	if res := res.Find(&events); res.Error != nil {
 		(&middleware.ErrorResponse{
 			Errors:      []string{ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
@@ -158,7 +163,11 @@ func (s *Events) HandleGetSingle(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	event := models.Event{}
-	if res := s.Database.First(&event, uint(id)); res.Error != nil {
+	res := s.Database
+	if user.Role != models.RoleAdmin {
+		res = res.Where("(department IS NULL OR department = ?) AND (year IS NULL OR year = ?)", user.Department, user.Year)
+	}
+	if res := res.First(&event, uint(id)); res.Error != nil {
 		(&middleware.ErrorResponse{
 			Errors:      []string{ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
