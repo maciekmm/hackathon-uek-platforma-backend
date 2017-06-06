@@ -31,6 +31,9 @@ type AuthClaims struct {
 
 func ParseToken(req *http.Request) (*jwt.Token, *AuthClaims, error) {
 	tok, err := jwt.ParseWithClaims(strings.TrimPrefix(req.Header.Get("Authorization"), "Bearer "), &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, errors.New("invalid signing method")
+		}
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
 	if claims, ok := tok.Claims.(*AuthClaims); ok {

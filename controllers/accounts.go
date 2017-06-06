@@ -18,12 +18,13 @@ import (
 )
 
 var (
-	ErrUserEmailInvalid    = errors.New("email invalid")
-	ErrUserPasswordInvalid = errors.New("password invalid")
-	ErrUserNameInvalid     = errors.New("name invalid")
-	ErrUserEmailRegistered = errors.New("mail already registered")
-	ErrUserEmailNotFound   = errors.New("email not found")
-	ErrAccountsUnknown     = errors.New("unknown error occured")
+	ErrUserEmailInvalid     = errors.New("email invalid")
+	ErrUserPasswordInvalid  = errors.New("password invalid")
+	ErrUserNameInvalid      = errors.New("name invalid")
+	ErrUserEmailRegistered  = errors.New("mail already registered")
+	ErrUserEmailNotFound    = errors.New("email not found")
+	ErrAccountsUnknown      = errors.New("unknown error occured")
+	ErrAccountsParsingError = errors.New("token parsing error occured")
 )
 
 type jwtResponse struct {
@@ -38,13 +39,14 @@ func (a *Accounts) Register(router *mux.Router) {
 	postRouter := router
 	postRouter.HandleFunc("/register", a.HandleRegister).Methods(http.MethodPost)
 	postRouter.HandleFunc("/login", a.HandleLogin).Methods(http.MethodPost)
+	postRouter.HandleFunc("/token", a.HandleRefresh).Methods(http.MethodPost)
 }
 
 func (a *Accounts) generateJWT(user *models.User) (string, error) {
 	// generate JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, middleware.AuthClaims{
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 24 * 7).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
 		},
 		User: user,
 	})
@@ -204,6 +206,50 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	// return JWT to client
 	body, _ := json.Marshal(&jwtResponse{
 		Token: tok,
+	})
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(body)
+}
+
+func (a *Accounts) HandleRefresh(rw http.ResponseWriter, r *http.Request) {
+	_, claims, err := middleware.ParseToken(r)
+	if err != nil {
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsParsingError.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusInternalServerError, rw)
+		return
+	}
+
+	if ve, ok := err.(*jwt.ValidationError); !ok || ve.Errors&jwt.ValidationErrorExpired == 0 {
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsParsingError.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusBadRequest, rw)
+		return
+	}
+
+	user := models.User{}
+	if res := a.Database.First(&user, claims.User.ID); res.Error != nil {
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrAccountsUnknown.Error()},
+			DebugErrors: []string{fmt.Sprintf("error occured while querying the database: %s", res.Error.Error())},
+		}).Write(http.StatusInternalServerError, rw)
+		return
+	}
+
+	// generate JWT
+	token, err := a.generateJWT(&user)
+	if err != nil {
+		(&middleware.ErrorResponse{
+			Errors: []string{err.Error()},
+		}).Write(http.StatusInternalServerError, rw)
+		return
+	}
+
+	// return JWT to client
+	body, _ := json.Marshal(&jwtResponse{
+		Token: token,
 	})
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(body)
