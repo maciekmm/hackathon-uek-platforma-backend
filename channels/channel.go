@@ -61,12 +61,12 @@ func (c *Coordinator) Start() {
 
 func (c *Coordinator) subscriptions(event *models.Event) ([]*models.Subscription, error) {
 	subscriptions := []*models.Subscription{}
-	res := c.database.Where("minimum_priority >= ?", event.Priority)
+	res := c.database.Table("subscriptions").Select("subscriptions.*").Joins("right join users ON subscriptions.user_id=users.id").Where("minimum_priority >= ?", event.Priority)
 	if event.Year != nil {
-		res = res.Where("year = ?", *event.Year)
+		res = res.Where("users.year = ?", *event.Year)
 	}
 	if event.Department != nil {
-		res = res.Where("department = ?", *event.Department)
+		res = res.Where("users.department = ?", *event.Department)
 	}
 	res = res.Find(&subscriptions)
 	if res.Error != nil {
