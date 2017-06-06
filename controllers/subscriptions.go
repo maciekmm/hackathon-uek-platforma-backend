@@ -23,13 +23,13 @@ type Subscriptions struct {
 }
 
 func (s *Subscriptions) Register(router *mux.Router) {
-	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleAdd))).Methods("POST")
-	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleDelete))).Methods("DELETE")
-	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleGetAll))).Methods("GET")
+	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleAdd))).Methods(http.MethodPost)
+	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleDelete))).Methods(http.MethodDelete)
+	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleGetAll))).Methods(http.MethodGet)
 }
 
 func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
-	_, claims, _ := middleware.ParseToken(r)
+	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
 
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
@@ -41,7 +41,7 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
-	subscription.UserID = claims.User.ID
+	subscription.UserID = user.ID
 
 	errors := []error{}
 	if len(subscription.Channel) == 0 {
@@ -58,7 +58,7 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	dbSubscription := models.Subscription{}
-	res := s.Database.Where("channel = ? AND user_id = ?", subscription.Channel, claims.User.ID).First(&dbSubscription)
+	res := s.Database.Where("channel = ? AND user_id = ?", subscription.Channel, user.ID).First(&dbSubscription)
 	if !res.RecordNotFound() {
 		if res := s.Database.Model(&dbSubscription).Updates(&subscription); res.Error != nil {
 			(&middleware.ErrorResponse{
@@ -76,7 +76,7 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	rw.WriteHeader(200)
+	rw.WriteHeader(http.StatusOK)
 }
 
 func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
@@ -100,7 +100,7 @@ func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
-	rw.WriteHeader(200)
+	rw.WriteHeader(http.StatusOK)
 }
 
 func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
@@ -113,7 +113,6 @@ func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
-	rw.WriteHeader(200)
 	byt, err := json.Marshal(&subs)
 	if err != nil {
 		(&middleware.ErrorResponse{
@@ -122,5 +121,6 @@ func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
+	rw.WriteHeader(http.StatusOK)
 	rw.Write(byt)
 }
