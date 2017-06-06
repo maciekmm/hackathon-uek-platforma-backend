@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -15,6 +16,12 @@ var (
 	ErrAuthInvalidToken = errors.New("invalid token")
 	ErrAuthNoPermission = errors.New("inferior user-role")
 	ErrAuthUnknown      = errors.New("unknown error")
+)
+
+type ContextKey string
+
+const (
+	ContextUserKey ContextKey = "user"
 )
 
 type AuthClaims struct {
@@ -42,7 +49,8 @@ func RequiresAuth(role models.UserRole, h http.Handler) http.Handler {
 		}
 
 		if claims != nil && claims.User.Role >= role {
-			h.ServeHTTP(rw, req)
+			ctx := context.WithValue(req.Context(), ContextUserKey, claims.User)
+			h.ServeHTTP(rw, req.WithContext(ctx))
 		} else if claims != nil && claims.User.Role < role {
 			NewErrorResponse(ErrAuthNoPermission).Write(http.StatusUnauthorized, rw)
 		} else {
