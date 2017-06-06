@@ -90,7 +90,7 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// uncomment later, good for testing purposes now
-	// user.Role = models.RoleUser
+	user.Role = models.RoleUser
 
 	// check if user already exists
 	var existingUser models.User

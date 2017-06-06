@@ -3,7 +3,7 @@ services:
   bruschetta:
     build: .
     ports:
-      - "80:3000"
+      - "3000:3000"
     links:
       - database
     env_file:
@@ -11,8 +11,6 @@ services:
   database:
     restart: always
     image: postgres:alpine
-    ports:
-      - "5432:5432"
     env_file:
       - ./credentials.env
     volumes:
