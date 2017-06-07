@@ -53,7 +53,7 @@ func (a *Application) init() error {
 	}
 
 	a.Logger.Println("establishing database connection")
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(10 * time.Second)
 out:
 	for {
 		select {
@@ -68,7 +68,7 @@ out:
 			} else {
 				a.Logger.Printf("pinging database failed: %s\n", err.Error())
 			}
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 		}
 	}
 

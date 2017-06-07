@@ -8,10 +8,14 @@ services:
       - database
     env_file:
       - ./credentials.env
+    depends_on:
+      - database
   database:
     restart: always
     image: postgres:alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     env_file:
       - ./credentials.env
-    volumes:
-      - /srv/docker/postgresql:/var/lib/postgresql
+volumes:
+  pgdata:
