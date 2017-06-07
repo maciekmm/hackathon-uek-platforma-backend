@@ -18,15 +18,14 @@ import (
 )
 
 var (
-	ErrUserEmailInvalid      = errors.New("email invalid")
-	ErrUserPasswordInvalid   = errors.New("password invalid")
-	ErrUserNameInvalid       = errors.New("name invalid")
-	ErrUserEmailRegistered   = errors.New("mail already registered")
-	ErrUserEmailNotFound     = errors.New("email not found")
-	ErrUserDepartmentInvalid = errors.New("department invalid")
-	ErrUserYearInvalid       = errors.New("year invalid")
-	ErrAccountsUnknown       = errors.New("unknown error occured")
-	ErrAccountsParsingError  = errors.New("token parsing error occured")
+	ErrUserEmailInvalid     = errors.New("email invalid")
+	ErrUserPasswordInvalid  = errors.New("password invalid")
+	ErrUserNameInvalid      = errors.New("name invalid")
+	ErrUserEmailRegistered  = errors.New("mail already registered")
+	ErrUserEmailNotFound    = errors.New("email not found")
+	ErrUserGroupInvalid     = errors.New("group invalid")
+	ErrAccountsUnknown      = errors.New("unknown error occured")
+	ErrAccountsParsingError = errors.New("token parsing error occured")
 )
 
 type jwtResponse struct {
@@ -83,11 +82,8 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	if len(user.Name) == 0 {
 		errors = append(errors, ErrUserNameInvalid.Error())
 	}
-	if len(user.Department) == 0 {
-		errors = append(errors, ErrUserDepartmentInvalid.Error())
-	}
-	if user.Year == 0 {
-		errors = append(errors, ErrUserYearInvalid.Error())
+	if user.Group == nil {
+		errors = append(errors, ErrUserGroupInvalid.Error())
 	}
 
 	if len(errors) != 0 {

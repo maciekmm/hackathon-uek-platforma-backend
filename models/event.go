@@ -20,7 +20,6 @@ type Event struct {
 	Description         string        `json:"description,omitempty"`
 	NotificationMessage string        `json:"message,omitempty"`
 	Priority            EventPriority `json:"priority,omitempty"`
-	Year                *uint         `json:"year,omitempty"`
-	Department          *string       `json:"department,omitempty"`
+	Group               *uint         `json:"group,omitempty"`
 	ChannelID           string        `json:"channel_id,omitempty"`
 }
