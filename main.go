@@ -90,6 +90,10 @@ out:
 	a.Logger.Println("setting up routes")
 	a.router = mux.NewRouter()
 
+	a.router.Methods("OPTIONS").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+	})
+
 	// accounts
 	accountController := &controllers.Accounts{Database: a.Database}
 	accountController.Register(a.router.PathPrefix("/accounts/").Subrouter())
