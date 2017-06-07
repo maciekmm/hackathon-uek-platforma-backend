@@ -38,9 +38,9 @@ type Accounts struct {
 
 func (a *Accounts) Register(router *mux.Router) {
 	postRouter := router
-	postRouter.HandleFunc("/register", a.HandleRegister).Methods(http.MethodPost)
-	postRouter.HandleFunc("/login", a.HandleLogin).Methods(http.MethodPost)
-	postRouter.HandleFunc("/token", a.HandleRefresh).Methods(http.MethodPost)
+	postRouter.HandleFunc("/register/", a.HandleRegister).Methods(http.MethodPost)
+	postRouter.HandleFunc("/login/", a.HandleLogin).Methods(http.MethodPost)
+	postRouter.HandleFunc("/token/", a.HandleRefresh).Methods(http.MethodPost)
 }
 
 func (a *Accounts) generateJWT(user *models.User) (string, error) {
