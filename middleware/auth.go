@@ -36,7 +36,10 @@ func ParseToken(req *http.Request) (*jwt.Token, *AuthClaims, error) {
 		}
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
-	if claims, ok := tok.Claims.(*AuthClaims); ok {
+
+	if err != nil {
+		return tok, nil, err
+	} else if claims, ok := tok.Claims.(*AuthClaims); ok {
 		return tok, claims, err
 	}
 	return tok, nil, err

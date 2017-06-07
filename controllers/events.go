@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -33,6 +34,7 @@ func (e *Events) Register(router *mux.Router) {
 	router.Handle("/{id:[0-9]+}/", middleware.RequiresAuth(models.RoleAdmin, http.HandlerFunc(e.HandlePatchSingle))).Methods(http.MethodPatch)
 	router.Handle("/{id:[0-9]+}/", middleware.RequiresAuth(models.RoleAdmin, http.HandlerFunc(e.HandlePutSingle))).Methods(http.MethodPut)
 	router.Handle("/{id:[0-9]+}/", middleware.RequiresAuth(models.RoleAdmin, http.HandlerFunc(e.HandleDelete))).Methods(http.MethodDelete)
+	router.Handle("/{id:[0-9]+}/interactions/", middleware.RequiresAuth(models.RoleAdmin, http.HandlerFunc(e.HandleGetInteractions))).Methods(http.MethodGet)
 }
 
 func (s *Events) HandleAdd(rw http.ResponseWriter, r *http.Request) {
@@ -151,6 +153,8 @@ func (s *Events) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 
 func (s *Events) HandleGetSingle(rw http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
+	channel := r.URL.Query().Get("channel")
+
 	vars := mux.Vars(r)
 
 	id, err := strconv.Atoi(vars["id"])
@@ -161,6 +165,24 @@ func (s *Events) HandleGetSingle(rw http.ResponseWriter, r *http.Request) {
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
+
+	// handle user interactions
+	interaction := &models.Interaction{
+		Timestamp: time.Now(),
+		UserID:    user.ID,
+		EventID:   uint(id),
+	}
+
+	if len(channel) > 0 {
+		ch := models.ChannelType(channel)
+		interaction.Channel = &ch
+	}
+
+	// save user interaction
+	go func(db *gorm.DB, interaction *models.Interaction) {
+		// this is just for statistics purposes, we don't care if it fails
+		db.Create(interaction)
+	}(s.Database, interaction)
 
 	event := models.Event{}
 	res := s.Database
@@ -262,4 +284,30 @@ func (s *Events) HandlePutSingle(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rw.WriteHeader(http.StatusOK)
+}
+
+func (e *Events) HandleGetInteractions(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrEventIDInvalid.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusBadRequest, rw)
+		return
+	}
+	interactions := []models.Interaction{}
+
+	e.Database.Where("event_id = ?", id).Find(&interactions)
+
+	byt, err := json.Marshal(&interactions)
+	if err != nil {
+		(&middleware.ErrorResponse{
+			Errors:      []string{ErrEventsUnknown.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusInternalServerError, rw)
+		return
+	}
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(byt)
 }
