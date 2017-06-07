@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -59,9 +60,13 @@ out:
 		case <-deadline:
 			return fmt.Errorf("could not establish database connection, last error: %s", err.Error())
 		default:
-			err = con.Ping()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			err = con.PingContext(ctx)
 			if err == nil {
 				break out
+			} else {
+				a.Logger.Printf("pinging database failed: %s\n", err.Error())
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
