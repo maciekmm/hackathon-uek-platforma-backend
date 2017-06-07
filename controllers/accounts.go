@@ -93,8 +93,9 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// uncomment later, good for testing purposes now
-	// user.Role = models.RoleUser
+	if os.Getenv("DEBUG") != "TRUE" {
+		user.Role = models.RoleUser
+	}
 
 	// check if user already exists
 	var existingUser models.User
