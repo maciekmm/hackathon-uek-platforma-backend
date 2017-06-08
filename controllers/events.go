@@ -129,7 +129,7 @@ func (s *Events) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 	events := []models.Event{}
 	res := s.Database
 	if user.Role != models.RoleAdmin {
-		res = res.Where("group IS NULL OR group = ?", user.Group)
+		res = res.Where("group IS NULL OR group = ?", *user.Group)
 	}
 	if res := res.Find(&events); res.Error != nil {
 		(&middleware.ErrorResponse{
@@ -187,7 +187,7 @@ func (s *Events) HandleGetSingle(rw http.ResponseWriter, r *http.Request) {
 	event := models.Event{}
 	res := s.Database
 	if user.Role != models.RoleAdmin {
-		res = res.Where("group IS NULL OR group = ?", user.Group)
+		res = res.Where("group IS NULL OR group = ?", *user.Group)
 	}
 	if res := res.First(&event, uint(id)); res.Error != nil {
 		(&middleware.ErrorResponse{
