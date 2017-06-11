@@ -12,8 +12,6 @@ import (
 
 	"time"
 
-	"encoding/json"
-
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -21,7 +19,6 @@ import (
 	"github.com/maciekmm/uek-bruschetta/channels"
 	"github.com/maciekmm/uek-bruschetta/controllers"
 	"github.com/maciekmm/uek-bruschetta/models"
-	"github.com/maciekmm/uek-bruschetta/timetable"
 )
 
 func main() {
@@ -74,25 +71,6 @@ out:
 			time.Sleep(1 * time.Second)
 		}
 	}
-	// timetables TODO: move this to a controller
-	if f, err := os.Open("./data/group-associations.json"); err != nil && os.IsNotExist(err) {
-		a.Logger.Printf("fetching group ids for reference")
-		f, err := os.Create("./data/group-associations.json")
-		if err != nil {
-			return fmt.Errorf("could not create group associations file: %s", err.Error())
-		}
-		groups, err := timetable.ScrapeGroupIDs()
-		if err != nil {
-			return fmt.Errorf("could not scrape group assocaitions: %s", err.Error())
-		}
-		enc := json.NewEncoder(f)
-		if err := enc.Encode(&groups); err != nil {
-			return fmt.Errorf("could not encode group associations: %s", err.Error())
-		}
-	} else if err == nil {
-		defer f.Close()
-	}
-
 	// auto-migrating models
 	a.Database, err = gorm.Open("postgres", con)
 	a.Database.SetLogger(a.Logger)
@@ -129,6 +107,12 @@ out:
 
 	// channels
 	messenger.Register(a.router.PathPrefix("/channels/messenger/").Subrouter())
+
+	// timetables
+	timetable := &controllers.Timetable{}
+	if err := timetable.Register(a.router.PathPrefix("/timetable/").Subrouter()); err != nil {
+		return fmt.Errorf("could not register timetable endpoint: %s", err.Error())
+	}
 	return nil
 }
 
