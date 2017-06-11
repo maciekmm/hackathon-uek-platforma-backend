@@ -2,10 +2,16 @@
 	"ImportPath": "github.com/maciekmm/uek-bruschetta",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
-	"Packages": [
-		"./..."
-	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/PuerkitoBio/goquery",
+			"Comment": "v1.1.0-5-g2dc9389",
+			"Rev": "2dc93891ab3bcc1dbc2cbf9bc6376c37f6e6f289"
+		},
+		{
+			"ImportPath": "github.com/andybalholm/cascadia",
+			"Rev": "349dd0209470eabd9514242c688c403c0926d266"
+		},
 		{
 			"ImportPath": "github.com/dgrijalva/jwt-go",
 			"Comment": "v3.0.0-18-g6c8dedd",
@@ -62,6 +68,14 @@
 		{
 			"ImportPath": "golang.org/x/crypto/blowfish",
 			"Rev": "efac7f277b17c19894091e358c6130cb6bd51117"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html",
+			"Rev": "5602c733f70afc6dcec6766be0d5034d4c4f14de"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html/atom",
+			"Rev": "5602c733f70afc6dcec6766be0d5034d4c4f14de"
 		}
 	]
 }

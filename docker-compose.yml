@@ -6,6 +6,8 @@ services:
       - "3000:3000"
     links:
       - database
+    volumes:
+      - uek:/var/lib/uek
     env_file:
       - ./credentials.env
     depends_on:
@@ -19,3 +21,4 @@ services:
       - ./credentials.env
 volumes:
   pgdata:
+  uek:
