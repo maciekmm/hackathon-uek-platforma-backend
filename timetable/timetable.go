@@ -137,7 +137,10 @@ func ParseTimetable(reader io.Reader, id uint) (*Timetable, error) {
 			timetable.Classes = append(timetable.Classes, &class)
 		}
 	})
-	return timetable, &ParsingError{Errors: errs}
+	if len(errs) > 0 {
+		return timetable, &ParsingError{Errors: errs}
+	}
+	return timetable, nil
 }
 
 type ClassDiff struct {
