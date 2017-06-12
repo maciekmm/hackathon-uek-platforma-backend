@@ -19,6 +19,7 @@ import (
 	"github.com/maciekmm/uek-bruschetta/channels"
 	"github.com/maciekmm/uek-bruschetta/controllers"
 	"github.com/maciekmm/uek-bruschetta/models"
+	"github.com/maciekmm/uek-bruschetta/timetable"
 )
 
 func main() {
@@ -85,10 +86,15 @@ out:
 	a.ChannelCoordinator = channels.NewCoordinator(a.Logger, a.Database, messenger)
 	go a.ChannelCoordinator.Start()
 
+	// setup timetables
+	timetable := timetable.NewCoordinator(2*time.Hour, a.Database, a.Logger)
+	go timetable.Start()
+
 	// setup routes
 	a.Logger.Println("setting up routes")
 	a.router = mux.NewRouter()
 
+	// shitty hack to counter browser CORS clients, it's hackathon all tricks are allowed
 	a.router.Methods("OPTIONS").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 	})
@@ -109,7 +115,6 @@ out:
 	messenger.Register(a.router.PathPrefix("/channels/messenger/").Subrouter())
 
 	// timetables
-	timetable := &controllers.Timetable{}
 	if err := timetable.Register(a.router.PathPrefix("/timetable/").Subrouter()); err != nil {
 		return fmt.Errorf("could not register timetable endpoint: %s", err.Error())
 	}

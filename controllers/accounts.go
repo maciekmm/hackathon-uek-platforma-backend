@@ -14,6 +14,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/maciekmm/uek-bruschetta/middleware"
 	"github.com/maciekmm/uek-bruschetta/models"
+	"github.com/maciekmm/uek-bruschetta/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -64,7 +65,7 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsUnknown.Error(), fmt.Sprintf("could not decode request body")},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
@@ -87,7 +88,7 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errors) != 0 {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors: errors,
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -103,14 +104,14 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	res := a.Database.First(&existingUser, "email = ?", user.Email)
 
 	if !res.RecordNotFound() {
-		middleware.NewErrorResponse(ErrUserEmailRegistered).Write(http.StatusBadRequest, rw)
+		utils.NewErrorResponse(ErrUserEmailRegistered).Write(http.StatusBadRequest, rw)
 		return
 	}
 
 	// encrypt password
 	pwd, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{fmt.Sprintf("could not encrypt user's password: %s", err)},
 		}).Write(http.StatusInternalServerError, rw)
@@ -120,7 +121,7 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	user.Password = string(pwd)
 
 	if err := a.Database.Create(&user).Error; err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
@@ -133,7 +134,7 @@ func (a *Accounts) HandleRegister(rw http.ResponseWriter, r *http.Request) {
 	tok, err := a.generateJWT(&user)
 
 	if err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
@@ -154,7 +155,7 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	user := models.User{}
 	if err := decoder.Decode(&user); err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsUnknown.Error(), fmt.Sprintf("could not decode request body")},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
@@ -172,7 +173,7 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errors) != 0 {
-		middleware.NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
+		utils.NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -180,12 +181,12 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	res := a.Database.First(&dbUser, "email = ?", user.Email)
 
 	if res.RecordNotFound() {
-		middleware.NewErrorResponse(ErrUserEmailNotFound).Write(http.StatusBadRequest, rw)
+		utils.NewErrorResponse(ErrUserEmailNotFound).Write(http.StatusBadRequest, rw)
 		return
 	}
 
 	if res.Error != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{fmt.Sprintf("error occured while querying the database: %s", res.Error.Error())},
 		}).Write(http.StatusInternalServerError, rw)
@@ -193,7 +194,7 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password)); err != nil {
-		middleware.NewErrorResponse(ErrUserPasswordInvalid).Write(http.StatusBadRequest, rw)
+		utils.NewErrorResponse(ErrUserPasswordInvalid).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -202,7 +203,7 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 	// generate JWT
 	tok, err := a.generateJWT(&dbUser)
 	if err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -219,7 +220,7 @@ func (a *Accounts) HandleLogin(rw http.ResponseWriter, r *http.Request) {
 func (a *Accounts) HandleRefresh(rw http.ResponseWriter, r *http.Request) {
 	tok, claims, err := middleware.ParseToken(r)
 	if err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsParsingError.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
@@ -227,7 +228,7 @@ func (a *Accounts) HandleRefresh(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if ve, ok := err.(*jwt.ValidationError); !tok.Valid && (!ok || ve.Errors&jwt.ValidationErrorExpired == 0) {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsParsingError.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
@@ -236,7 +237,7 @@ func (a *Accounts) HandleRefresh(rw http.ResponseWriter, r *http.Request) {
 
 	user := models.User{}
 	if res := a.Database.First(&user, claims.User.ID); res.Error != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrAccountsUnknown.Error()},
 			DebugErrors: []string{fmt.Sprintf("error occured while querying the database: %s", res.Error.Error())},
 		}).Write(http.StatusInternalServerError, rw)
@@ -246,7 +247,7 @@ func (a *Accounts) HandleRefresh(rw http.ResponseWriter, r *http.Request) {
 	// generate JWT
 	token, err := a.generateJWT(&user)
 	if err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return

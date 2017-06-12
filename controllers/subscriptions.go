@@ -10,6 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/maciekmm/uek-bruschetta/middleware"
 	"github.com/maciekmm/uek-bruschetta/models"
+	"github.com/maciekmm/uek-bruschetta/utils"
 )
 
 var (
@@ -35,7 +36,7 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	subscription := models.Subscription{}
 	if err := decoder.Decode(&subscription); err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
@@ -53,7 +54,7 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errors) > 0 {
-		middleware.NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
+		utils.NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -61,7 +62,7 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 	res := s.Database.Where("channel = ? AND user_id = ?", subscription.Channel, user.ID).First(&dbSubscription)
 	if !res.RecordNotFound() {
 		if res := s.Database.Model(&dbSubscription).Updates(&subscription); res.Error != nil {
-			(&middleware.ErrorResponse{
+			(&utils.ErrorResponse{
 				Errors:      []string{ErrSubscriptionsUnknown.Error()},
 				DebugErrors: []string{res.Error.Error()},
 			}).Write(http.StatusInternalServerError, rw)
@@ -69,7 +70,7 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		if res := s.Database.Create(&subscription); res.Error != nil {
-			(&middleware.ErrorResponse{
+			(&utils.ErrorResponse{
 				Errors:      []string{ErrSubscriptionsUnknown.Error()},
 				DebugErrors: []string{res.Error.Error()},
 			}).Write(http.StatusInternalServerError, rw)
@@ -86,7 +87,7 @@ func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	subscription := models.Subscription{}
 	if err := decoder.Decode(&subscription); err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
@@ -95,7 +96,7 @@ func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 
 	subscription.UserID = user.ID
 	if res := s.Database.Unscoped().Where("(id = ?) OR (user_id = ? AND channel = ?)", subscription.ID, user.ID, subscription.Channel).Delete(&models.Subscription{}); res.Error != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
@@ -109,7 +110,7 @@ func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 
 	subs := []models.Subscription{}
 	if res := s.Database.Where("user_id = ?", user.ID).Find(&subs); res.Error != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
@@ -117,7 +118,7 @@ func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 	}
 	byt, err := json.Marshal(&subs)
 	if err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)

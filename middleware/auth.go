@@ -10,6 +10,7 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/maciekmm/uek-bruschetta/models"
+	"github.com/maciekmm/uek-bruschetta/utils"
 )
 
 var (
@@ -50,7 +51,7 @@ func RequiresAuth(role models.UserRole, h http.Handler) http.Handler {
 		tok, claims, err := ParseToken(req)
 
 		if err != nil || !tok.Valid {
-			NewErrorResponse(ErrAuthInvalidToken, err).Write(http.StatusUnauthorized, rw)
+			utils.NewErrorResponse(ErrAuthInvalidToken, err).Write(http.StatusUnauthorized, rw)
 			return
 		}
 
@@ -58,9 +59,9 @@ func RequiresAuth(role models.UserRole, h http.Handler) http.Handler {
 			ctx := context.WithValue(req.Context(), ContextUserKey, claims.User)
 			h.ServeHTTP(rw, req.WithContext(ctx))
 		} else if claims != nil && claims.User.Role < role {
-			NewErrorResponse(ErrAuthNoPermission).Write(http.StatusUnauthorized, rw)
+			utils.NewErrorResponse(ErrAuthNoPermission).Write(http.StatusUnauthorized, rw)
 		} else {
-			NewErrorResponse(ErrAuthUnknown).Write(http.StatusInternalServerError, rw)
+			utils.NewErrorResponse(ErrAuthUnknown).Write(http.StatusInternalServerError, rw)
 		}
 	})
 }

@@ -12,14 +12,7 @@ import (
 	"github.com/maciekmm/uek-bruschetta/channels"
 	"github.com/maciekmm/uek-bruschetta/middleware"
 	"github.com/maciekmm/uek-bruschetta/models"
-)
-
-var (
-	ErrEventsUnknown                   = errors.New("unknown error")
-	ErrEventIDInvalid                  = errors.New("invalid id")
-	ErrEventDescriptionInvalid         = errors.New("invalid description")
-	ErrEventNameInvalid                = errors.New("invalid name")
-	ErrEventNotificationMessageInvalid = errors.New("invalid notification message")
+	"github.com/maciekmm/uek-bruschetta/utils"
 )
 
 type Events struct {
@@ -44,61 +37,34 @@ func (s *Events) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 
 	event := models.Event{}
 	if err := decoder.Decode(&event); err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
 	event.UserID = user.ID
 
-	// verify completeness of provided model
-	errs := []error{}
-	if len(event.Description) == 0 {
-		errs = append(errs, ErrEventDescriptionInvalid)
-	}
-	if len(event.Name) == 0 {
-		errs = append(errs, ErrEventNameInvalid)
-	}
-	if len(event.NotificationMessage) == 0 {
-		errs = append(errs, ErrEventNotificationMessageInvalid)
-	}
-
-	if len(errs) > 0 {
-		middleware.NewErrorResponse(errs...).Write(http.StatusBadRequest, rw)
+	if err := event.Add(s.Database); err != nil {
+		if res, ok := err.(*utils.ErrorResponse); ok {
+			res.Write(http.StatusBadRequest, rw)
+			return
+		}
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusInternalServerError, rw)
 		return
 	}
 
-	dbEvent := models.Event{}
-	res := s.Database.Create(&event)
-
-	// update if record already exists, this should be done using PATCH or PUT methods, but it's easier to do it this way
-	if !res.RecordNotFound() {
-		if res := s.Database.Model(&dbEvent).Updates(&event); res.Error != nil {
-			(&middleware.ErrorResponse{
-				Errors:      []string{ErrEventsUnknown.Error()},
-				DebugErrors: []string{res.Error.Error()},
-			}).Write(http.StatusInternalServerError, rw)
-			return
-		}
-	} else {
-		if res := s.Database.Create(&event); res.Error != nil {
-			(&middleware.ErrorResponse{
-				Errors:      []string{ErrEventsUnknown.Error()},
-				DebugErrors: []string{res.Error.Error()},
-			}).Write(http.StatusInternalServerError, rw)
-			return
-		}
-	}
-
+	// verify completeness of provided model
 	if err := s.Coordinator.Send(&event); err != nil {
-		(&middleware.ErrorResponse{
+		(&utils.ErrorResponse{
 			Errors:      []string{errors.New("event was added, but sending notifications failed").Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusMultiStatus, rw)
 		return
 	}
-
 	rw.WriteHeader(http.StatusOK)
 }
 
@@ -107,16 +73,16 @@ func (s *Events) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventIDInvalid.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventIDInvalid.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
 
 	if res := s.Database.Delete(&models.Event{Model: gorm.Model{ID: uint(id)}}); res.Error != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -132,8 +98,8 @@ func (s *Events) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 		res = res.Where("\"group\" = ? OR \"group\" IS NULL", *user.Group)
 	}
 	if res := res.Find(&events); res.Error != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -141,8 +107,8 @@ func (s *Events) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 
 	byt, err := json.Marshal(&events)
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -159,8 +125,8 @@ func (s *Events) HandleGetSingle(rw http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventIDInvalid.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventIDInvalid.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -190,8 +156,8 @@ func (s *Events) HandleGetSingle(rw http.ResponseWriter, r *http.Request) {
 		res = res.Where("\"group\" = ? OR \"group\" IS NULL", *user.Group)
 	}
 	if res := res.First(&event, uint(id)); res.Error != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -200,8 +166,8 @@ func (s *Events) HandleGetSingle(rw http.ResponseWriter, r *http.Request) {
 
 	byt, err := json.Marshal(&event)
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -215,8 +181,8 @@ func (s *Events) HandlePatchSingle(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventIDInvalid.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventIDInvalid.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -227,8 +193,8 @@ func (s *Events) HandlePatchSingle(rw http.ResponseWriter, r *http.Request) {
 
 	event := models.Event{}
 	if err := decoder.Decode(&event); err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -239,8 +205,8 @@ func (s *Events) HandlePatchSingle(rw http.ResponseWriter, r *http.Request) {
 	model.ID = uint(id)
 
 	if res := s.Database.Model(&model).Updates(&event); res.Error != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -255,8 +221,8 @@ func (s *Events) HandlePutSingle(rw http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventIDInvalid.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventIDInvalid.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -267,8 +233,8 @@ func (s *Events) HandlePutSingle(rw http.ResponseWriter, r *http.Request) {
 
 	event := models.Event{}
 	if err := decoder.Decode(&event); err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -277,8 +243,8 @@ func (s *Events) HandlePutSingle(rw http.ResponseWriter, r *http.Request) {
 	event.ID = uint(id)
 	event.UserID = user.ID
 	if res := s.Database.Save(&event); res.Error != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -290,8 +256,8 @@ func (e *Events) HandleGetInteractions(rw http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventIDInvalid.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventIDInvalid.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
@@ -302,8 +268,8 @@ func (e *Events) HandleGetInteractions(rw http.ResponseWriter, r *http.Request) 
 
 	byt, err := json.Marshal(&interactions)
 	if err != nil {
-		(&middleware.ErrorResponse{
-			Errors:      []string{ErrEventsUnknown.Error()},
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
