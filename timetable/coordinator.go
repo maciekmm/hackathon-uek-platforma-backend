@@ -146,7 +146,9 @@ func (c *Coordinator) Start() error {
 		return err
 	}
 	//return nil
-	c.checkUpdates()
+	if err := c.checkUpdates(); err != nil {
+		c.Logger.Printf("could not check updates: %s\n", err.Error())
+	}
 	for {
 		select {
 		case _, ok := <-c.ticker.C:
@@ -154,7 +156,9 @@ func (c *Coordinator) Start() error {
 				c.Logger.Println("stopping timetable worker")
 				return nil
 			}
-			c.checkUpdates()
+			if err := c.checkUpdates(); err != nil {
+				c.Logger.Printf("could not check updates: %s\n", err.Error())
+			}
 		}
 	}
 }
