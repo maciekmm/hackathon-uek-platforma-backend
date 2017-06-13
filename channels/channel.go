@@ -61,7 +61,7 @@ func (c *Coordinator) Start() {
 
 func (c *Coordinator) subscriptions(event *models.Event) ([]*models.Subscription, error) {
 	subscriptions := []*models.Subscription{}
-	res := c.database.Table("subscriptions").Select("subscriptions.*").Joins("right join users ON subscriptions.user_id=users.id").Where("minimum_priority >= ?", event.Priority)
+	res := c.database.Table("subscriptions").Select("subscriptions.*").Joins("right join users ON subscriptions.user_id=users.id").Where("minimum_priority <= ?", event.Priority)
 	if event.Group != nil {
 		res = res.Where("\"users\".\"group\" = ?", *event.Group)
 	}

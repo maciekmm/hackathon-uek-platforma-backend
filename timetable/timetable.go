@@ -47,6 +47,10 @@ type Class struct {
 	Urgent  bool      `json:"urgent,omitempty"`
 }
 
+func (c *Class) String() string {
+	return fmt.Sprintf("%s - %s: %s - %s (%s) w %s", c.Start.Format(timeFormat), c.End.Format(timeFormat), c.Type, c.Class, c.Teacher, c.Room)
+}
+
 func (c *Class) Valid() bool {
 	return !c.Start.IsZero() && !c.End.IsZero() && len(c.Class) > 0
 }
@@ -100,7 +104,7 @@ func ParseTimetable(reader io.Reader, id uint) (*Timetable, error) {
 			switch j {
 			//termin
 			case 0:
-				termin = sel.Text()
+				termin = strings.TrimSpace(sel.Text())
 			//godzina
 			case 1:
 				hours := hourExpression.FindAllString(sel.Text(), -1)
@@ -122,13 +126,13 @@ func ParseTimetable(reader io.Reader, id uint) (*Timetable, error) {
 				class.End = parsed
 			//przedmiot
 			case 2:
-				class.Class = sel.Text()
+				class.Class = strings.TrimSpace(sel.Text())
 			case 3:
-				class.Type = sel.Text()
+				class.Type = strings.TrimSpace(sel.Text())
 			case 4:
-				class.Teacher = sel.Text()
+				class.Teacher = strings.TrimSpace(sel.Text())
 			case 5:
-				class.Room = sel.Text()
+				class.Room = strings.TrimSpace(sel.Text())
 			}
 
 			return true
@@ -143,40 +147,63 @@ func ParseTimetable(reader io.Reader, id uint) (*Timetable, error) {
 	return timetable, nil
 }
 
+type TimetableDiff []ClassDiff
+
+func (td TimetableDiff) String() string {
+	message := ""
+	for _, d := range td {
+		message += d.String()
+		message += "\n\n"
+	}
+	return message
+}
+
 type ClassDiff struct {
 	Old *Class `json:"old"`
 	New *Class `json:"new"`
 }
 
-func (old *Timetable) Diff(new *Timetable) []ClassDiff {
-	cd := []ClassDiff{}
-	for i, newClass := range new.Classes {
-		//direct match (?)
-		oldClass := old.Classes[i]
-		if oldClass.Equal(newClass) {
-			continue
-		}
-		//support shifting
-		if !oldClass.Start.Equal(newClass.Start) {
-			oldClass = nil
-			for _, class := range old.Classes {
-				if class.Start.Equal(newClass.Start) {
-					oldClass = class
-					break
-				}
+func (cd ClassDiff) String() string {
+	if cd.New == nil {
+		return "Wycofane: " + cd.Old.String()
+	} else if cd.Old == nil {
+		return "Nowe: " + cd.New.String()
+	}
+	return "Zmiana:\n\t" + cd.Old.String() + "\n\tna: " + cd.New.String()
+}
+
+func (old Timetable) Diff(new Timetable) TimetableDiff {
+	diff := []ClassDiff{}
+
+outer:
+	for _, newClass := range new.Classes {
+		for j, oldClass := range old.Classes {
+			if !oldClass.Start.Equal(newClass.Start) {
+				continue
 			}
-		}
-		if oldClass != nil && !oldClass.Equal(newClass) {
-			cd = append(cd, ClassDiff{
+			old.Classes = append(old.Classes[:j], old.Classes[j+1:]...)
+
+			if newClass.Equal(oldClass) {
+				continue outer
+			}
+
+			diff = append(diff, ClassDiff{
 				Old: oldClass,
 				New: newClass,
 			})
-		} else if oldClass == nil {
-			cd = append(cd, ClassDiff{
-				Old: nil,
-				New: newClass,
-			})
+			continue outer
 		}
+		// the class is not in the old timetable
+		diff = append(diff, ClassDiff{
+			Old: nil,
+			New: newClass,
+		})
 	}
-	return cd
+	for _, oldClass := range old.Classes {
+		diff = append(diff, ClassDiff{
+			Old: oldClass,
+			New: nil,
+		})
+	}
+	return diff
 }

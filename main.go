@@ -87,7 +87,7 @@ out:
 	go a.ChannelCoordinator.Start()
 
 	// setup timetables
-	timetable := timetable.NewCoordinator(2*time.Hour, a.Database, a.Logger)
+	timetable := timetable.NewCoordinator(2*time.Hour, a.Database, a.Logger, a.ChannelCoordinator)
 	go timetable.Start()
 
 	// setup routes

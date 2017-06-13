@@ -26,10 +26,12 @@ const minimumTimetableLongevity = 2 * time.Hour
 const pathPrefix = "/var/lib/uek/"
 
 var (
-	ErrTimetableUnknown = errors.New("unknown error occured")
+	ErrTimetableUnknown   = errors.New("unknown error occured")
+	ErrTimetableNoGroupId = errors.New("no group id specified for this user")
 )
 
 type Coordinator struct {
+	EventPipe    models.EventPipe
 	Logger       *log.Logger
 	Database     *gorm.DB
 	ticker       *time.Ticker
@@ -39,14 +41,15 @@ type Coordinator struct {
 	associations []byte
 }
 
-func NewCoordinator(interval time.Duration, database *gorm.DB, logger *log.Logger) *Coordinator {
+func NewCoordinator(interval time.Duration, database *gorm.DB, logger *log.Logger, pipe models.EventPipe) *Coordinator {
 	return &Coordinator{
-		Logger:   logger,
-		Database: database,
-		ticker:   time.NewTicker(interval),
-		stop:     make(chan interface{}),
-		mapMutex: &sync.RWMutex{},
-		cache:    make(map[string]*Timetable),
+		Logger:    logger,
+		EventPipe: pipe,
+		Database:  database,
+		ticker:    time.NewTicker(interval),
+		stop:      make(chan interface{}),
+		mapMutex:  &sync.RWMutex{},
+		cache:     make(map[string]*Timetable),
 	}
 }
 
@@ -80,7 +83,7 @@ func (c *Coordinator) HandleGetTimetable(rw http.ResponseWriter, r *http.Request
 	}
 
 	if group == nil {
-		utils.NewErrorResponse(errors.New("no group id specified for this user")).Write(http.StatusBadRequest, rw)
+		utils.NewErrorResponse(ErrTimetableNoGroupId).Write(http.StatusBadRequest, rw)
 		return
 	}
 
@@ -142,7 +145,7 @@ func (c *Coordinator) Start() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	//return nil
 	c.checkUpdates()
 	for {
 		select {
@@ -186,9 +189,19 @@ func (c *Coordinator) checkUpdates() error {
 			c.Logger.Printf("could not fetch and parse timetable for group: %d, period: %d, err: %s\n", group, 3, err.Error())
 			continue
 		}
-		diff := old.Diff(new)
+		diff := old.Diff(*new)
 		if len(diff) > 0 {
-			fmt.Println("diff detected")
+			c.Logger.Printf("changes detected in %d-%d\n", group, 3)
+			event := &models.Event{
+				Group:               &group,
+				Name:                "Zmiana w planie zajęć!",
+				NotificationMessage: "Zapoznaj się z nowym planem zajęć.",
+				Description:         diff.String(),
+				Priority:            models.EventPriorityHigh,
+			}
+			if err := event.Add(c.Database, c.EventPipe); err != nil {
+				c.Logger.Printf("could not send timetable diff: %s", err.Error())
+			}
 		}
 		time.Sleep(1 * time.Second)
 	}

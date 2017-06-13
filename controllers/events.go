@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -45,7 +44,7 @@ func (s *Events) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 	}
 	event.UserID = user.ID
 
-	if err := event.Add(s.Database); err != nil {
+	if err := event.Add(s.Database, s.Coordinator); err != nil {
 		if res, ok := err.(*utils.ErrorResponse); ok {
 			res.Write(http.StatusBadRequest, rw)
 			return
@@ -57,14 +56,6 @@ func (s *Events) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// verify completeness of provided model
-	if err := s.Coordinator.Send(&event); err != nil {
-		(&utils.ErrorResponse{
-			Errors:      []string{errors.New("event was added, but sending notifications failed").Error()},
-			DebugErrors: []string{err.Error()},
-		}).Write(http.StatusMultiStatus, rw)
-		return
-	}
 	rw.WriteHeader(http.StatusOK)
 }
 

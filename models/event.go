@@ -23,6 +23,10 @@ var (
 	ErrEventNotificationMessageInvalid = errors.New("invalid notification message")
 )
 
+type EventPipe interface {
+	Send(*Event) error
+}
+
 type Event struct {
 	gorm.Model
 	UserID              uint          `json:"user_id,omitempty"`
@@ -34,7 +38,7 @@ type Event struct {
 	Group               *uint         `json:"group,omitempty"`
 }
 
-func (event *Event) Add(db *gorm.DB) error {
+func (event *Event) Add(db *gorm.DB, coord EventPipe) error {
 	errs := []error{}
 	if len(event.Description) == 0 {
 		errs = append(errs, ErrEventDescriptionInvalid)
@@ -51,7 +55,7 @@ func (event *Event) Add(db *gorm.DB) error {
 	}
 
 	dbEvent := Event{}
-	res := db.Create(&event)
+	res := db.Create(event)
 
 	// update if record already exists, this should be done using PATCH or PUT methods, but it's easier to do it this way
 	if !res.RecordNotFound() {
@@ -68,6 +72,14 @@ func (event *Event) Add(db *gorm.DB) error {
 				DebugErrors: []string{res.Error.Error()},
 			})
 		}
+	}
+
+	// verify completeness of provided model
+	if err := coord.Send(event); err != nil {
+		return (&utils.ErrorResponse{
+			Errors:      []string{errors.New("event was added, but sending notifications failed").Error()},
+			DebugErrors: []string{err.Error()},
+		})
 	}
 	return nil
 }
