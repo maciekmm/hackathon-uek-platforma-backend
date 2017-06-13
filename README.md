@@ -144,7 +144,7 @@ Sample response:
 
 Posts an event and sends notifications to all matching students. Specifying `group` parameter limits the message to a specific group only.
 
-**Role: **Admin
+**Role:** Admin
 
 Sample request:
 
@@ -163,25 +163,25 @@ Sample request:
 
 Deletes the event speified by `:id`
 
-**Role: **Admin
+**Role:** Admin
 
 ### PUT/PATCH /events/:id/
 
 Updates the event by replacing (PUT) or changing parameters (PATCH)
 
-**Role: **Admin
+**Role:** Admin
 
 ### GET /subscriptions/
 
 Lists all user subscriptions.
 
-**Role: **User
+**Role:** User
 
 ### POST /subscriptions/
 
 Adds or updates user's subscription.
 
-**Role: **User
+**Role:** User
 
 Sample request:
 
@@ -197,7 +197,7 @@ Sample request:
 
 Gets user's timetable.
 
-**Role: **User
+**Role:** User
 
 ### GET /timetable/groups/
 
