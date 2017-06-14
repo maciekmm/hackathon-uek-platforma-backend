@@ -81,6 +81,8 @@ func (m *Messenger) AuthenticationHandler(event messenger.Event, opts messenger.
 	sub := &models.Subscription{
 		UserID:          uint(id),
 		MinimumPriority: models.EventPriority(priority),
+		Channel:         "messenger",
+		ChannelID:       opts.Sender.ID,
 	}
 	if err := sub.Add(m.Database); err != nil {
 		m.Logger.Printf("could not register subscription %+v, error: %s\n", sub, err.Error())
