@@ -179,7 +179,7 @@ Lists all user subscriptions.
 
 ### POST /subscriptions/
 
-Adds or updates user's subscription.
+Adds user's subscription.
 
 **Role:** User
 
@@ -192,6 +192,17 @@ Sample request:
     "priority": 2
 }
 ```
+### PATCH /subscriptions/:id/
+
+Patches user's subscription
+
+**Role:** User
+
+### DELETE /subscriptions/:id/
+
+Deletes user's subscription
+
+**Role:** User
 
 ### GET /timetable/
 

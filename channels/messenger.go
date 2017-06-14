@@ -2,9 +2,13 @@ package channels
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	messenger "github.com/maciekmm/messenger-platform-go-sdk"
 	"github.com/maciekmm/messenger-platform-go-sdk/template"
 	"github.com/maciekmm/uek-bruschetta/models"
@@ -15,6 +19,8 @@ const (
 )
 
 type Messenger struct {
+	Logger    *log.Logger
+	Database  *gorm.DB
 	messenger *messenger.Messenger
 }
 
@@ -28,7 +34,7 @@ func (m *Messenger) Register(router *mux.Router) {
 		AppSecret:   os.Getenv("FB_APP_SECRET"),
 		AccessToken: os.Getenv("FB_ACCESS_TOKEN"),
 	}
-	m.messenger.MessageReceived = m.Received
+	m.messenger.Authentication = m.AuthenticationHandler
 
 	if os.Getenv("DEBUG") == "TRUE" {
 		m.messenger.Debug = messenger.DebugAll
@@ -52,6 +58,31 @@ func (m *Messenger) Send(sub *models.Subscription, event *models.Event) error {
 	return err
 }
 
-func (m *Messenger) Received(_ messenger.Event, opt messenger.MessageOpts, _ messenger.ReceivedMessage) {
-	fmt.Println(opt.Sender.ID)
+func (m *Messenger) AuthenticationHandler(event messenger.Event, opts messenger.MessageOpts, optin *messenger.Optin) {
+	if optin == nil {
+		return
+	}
+	fragments := strings.Split(optin.Ref, ":")
+	if len(fragments) != 2 {
+		m.Logger.Printf("number of fragments in '%s' is not equal to 2\n", optin.Ref)
+		return
+	}
+
+	id, err := strconv.Atoi(fragments[0])
+	if err != nil {
+		m.Logger.Printf("could not parse priority %s\n", err.Error())
+		return
+	}
+	priority, err := strconv.Atoi(fragments[1])
+	if err != nil {
+		m.Logger.Printf("could not parse priority %s\n", err.Error())
+		return
+	}
+	sub := &models.Subscription{
+		UserID:          uint(id),
+		MinimumPriority: models.EventPriority(priority),
+	}
+	if err := sub.Add(m.Database); err != nil {
+		m.Logger.Printf("could not register subscription %+v, error: %s\n", sub, err.Error())
+	}
 }

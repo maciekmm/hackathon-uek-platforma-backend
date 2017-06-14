@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"errors"
 	"net/http"
+	"strconv"
 
 	"encoding/json"
 
@@ -13,20 +13,16 @@ import (
 	"github.com/maciekmm/uek-bruschetta/utils"
 )
 
-var (
-	ErrSubscriptionsUnknown         = errors.New("unknown error")
-	ErrSubscriptionChannelInvalid   = errors.New("invalid channel")
-	ErrSubscriptionChannelIdInvalid = errors.New("invalid channel id")
-)
-
 type Subscriptions struct {
 	Database *gorm.DB
 }
 
 func (s *Subscriptions) Register(router *mux.Router) {
 	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleAdd))).Methods(http.MethodPost)
-	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleDelete))).Methods(http.MethodDelete)
 	router.Handle("/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleGetAll))).Methods(http.MethodGet)
+	router.Handle("/{id:[0-9]+}/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandleDelete))).Methods(http.MethodDelete)
+	router.Handle("/{id:[0-9]+}/", middleware.RequiresAuth(models.RoleUser, http.HandlerFunc(s.HandlePatch))).Methods(http.MethodPatch)
+
 }
 
 func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
@@ -37,67 +33,82 @@ func (s *Subscriptions) HandleAdd(rw http.ResponseWriter, r *http.Request) {
 	subscription := models.Subscription{}
 	if err := decoder.Decode(&subscription); err != nil {
 		(&utils.ErrorResponse{
-			Errors:      []string{ErrSubscriptionsUnknown.Error()},
+			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
 	subscription.UserID = user.ID
-
-	errors := []error{}
-	if len(subscription.Channel) == 0 {
-		errors = append(errors, ErrSubscriptionChannelInvalid)
-	}
-
-	if len(subscription.ChannelID) == 0 {
-		errors = append(errors, ErrSubscriptionChannelIdInvalid)
-	}
-
-	if len(errors) > 0 {
-		utils.NewErrorResponse(errors...).Write(http.StatusBadRequest, rw)
+	if err := subscription.Add(s.Database); err != nil {
+		if res, ok := err.(*utils.ErrorResponse); ok {
+			res.Write(http.StatusBadRequest, rw)
+			return
+		}
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusInternalServerError, rw)
 		return
-	}
-
-	dbSubscription := models.Subscription{}
-	res := s.Database.Where("channel = ? AND user_id = ?", subscription.Channel, user.ID).First(&dbSubscription)
-	if !res.RecordNotFound() {
-		if res := s.Database.Model(&dbSubscription).Updates(&subscription); res.Error != nil {
-			(&utils.ErrorResponse{
-				Errors:      []string{ErrSubscriptionsUnknown.Error()},
-				DebugErrors: []string{res.Error.Error()},
-			}).Write(http.StatusInternalServerError, rw)
-			return
-		}
-	} else {
-		if res := s.Database.Create(&subscription); res.Error != nil {
-			(&utils.ErrorResponse{
-				Errors:      []string{ErrSubscriptionsUnknown.Error()},
-				DebugErrors: []string{res.Error.Error()},
-			}).Write(http.StatusInternalServerError, rw)
-			return
-		}
 	}
 	rw.WriteHeader(http.StatusOK)
 }
 
 func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
+	vars := mux.Vars(r)
 
-	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-	subscription := models.Subscription{}
-	if err := decoder.Decode(&subscription); err != nil {
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
 		(&utils.ErrorResponse{
-			Errors:      []string{ErrSubscriptionsUnknown.Error()},
+			Errors:      []string{models.ErrSubscriptionIDInvalid.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusBadRequest, rw)
 		return
 	}
 
-	subscription.UserID = user.ID
-	if res := s.Database.Unscoped().Where("(id = ?) OR (user_id = ? AND channel = ?)", subscription.ID, user.ID, subscription.Channel).Delete(&models.Subscription{}); res.Error != nil {
+	if res := s.Database.Unscoped().Where("id = ? AND user_id = ?", uint(id), user.ID).Delete(&models.Subscription{}); res.Error != nil {
 		(&utils.ErrorResponse{
-			Errors:      []string{ErrSubscriptionsUnknown.Error()},
+			Errors:      []string{models.ErrEventsUnknown.Error()},
+			DebugErrors: []string{res.Error.Error()},
+		}).Write(http.StatusInternalServerError, rw)
+		return
+	}
+	rw.WriteHeader(http.StatusOK)
+}
+
+func (s *Subscriptions) HandlePatch(rw http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
+	vars := mux.Vars(r)
+
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrSubscriptionIDInvalid.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusBadRequest, rw)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+
+	sub := models.Subscription{}
+	if err := decoder.Decode(&sub); err != nil {
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
+			DebugErrors: []string{err.Error()},
+		}).Write(http.StatusBadRequest, rw)
+		return
+	}
+
+	sub.UserID = user.ID
+	model := models.Subscription{}
+	model.ID = uint(id)
+	model.UserID = user.ID
+
+	if res := s.Database.Model(&model).Updates(&sub); res.Error != nil {
+		(&utils.ErrorResponse{
+			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -111,7 +122,7 @@ func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 	subs := []models.Subscription{}
 	if res := s.Database.Where("user_id = ?", user.ID).Find(&subs); res.Error != nil {
 		(&utils.ErrorResponse{
-			Errors:      []string{ErrSubscriptionsUnknown.Error()},
+			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return
@@ -119,7 +130,7 @@ func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 	byt, err := json.Marshal(&subs)
 	if err != nil {
 		(&utils.ErrorResponse{
-			Errors:      []string{ErrSubscriptionsUnknown.Error()},
+			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{err.Error()},
 		}).Write(http.StatusInternalServerError, rw)
 		return

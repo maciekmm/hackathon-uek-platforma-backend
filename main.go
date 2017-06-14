@@ -82,7 +82,10 @@ out:
 	a.Database.AutoMigrate(&models.User{}, &models.Event{}, &models.Interaction{}, &models.Subscription{})
 
 	// setup channel coordinator
-	messenger := &channels.Messenger{}
+	messenger := &channels.Messenger{
+		Logger:   a.Logger,
+		Database: a.Database,
+	}
 	a.ChannelCoordinator = channels.NewCoordinator(a.Logger, a.Database, messenger)
 	go a.ChannelCoordinator.Start()
 
