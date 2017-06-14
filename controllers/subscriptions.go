@@ -66,7 +66,7 @@ func (s *Subscriptions) HandleDelete(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if res := s.Database.Unscoped().Where("id = ? AND user_id = ?", uint(id), user.ID).Delete(&models.Subscription{}); res.Error != nil {
+	if res := s.Database.Where("id = ? AND user_id = ?", uint(id), user.ID).Delete(&models.Subscription{}); res.Error != nil {
 		(&utils.ErrorResponse{
 			Errors:      []string{models.ErrEventsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
@@ -120,7 +120,7 @@ func (s *Subscriptions) HandleGetAll(rw http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(middleware.ContextUserKey).(*models.User)
 
 	subs := []models.Subscription{}
-	if res := s.Database.Where("user_id = ?", user.ID).Find(&subs); res.Error != nil {
+	if res := s.Database.Unscoped().Where("user_id = ?", user.ID).Find(&subs); res.Error != nil {
 		(&utils.ErrorResponse{
 			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},
