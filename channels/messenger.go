@@ -70,7 +70,7 @@ func (m *Messenger) AuthenticationHandler(event messenger.Event, opts messenger.
 
 	id, err := strconv.Atoi(fragments[0])
 	if err != nil {
-		m.Logger.Printf("could not parse priority %s\n", err.Error())
+		m.Logger.Printf("could not parse id %s\n", err.Error())
 		return
 	}
 	priority, err := strconv.Atoi(fragments[1])
