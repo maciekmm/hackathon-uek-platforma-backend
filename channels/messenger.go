@@ -78,9 +78,10 @@ func (m *Messenger) AuthenticationHandler(event messenger.Event, opts messenger.
 		m.Logger.Printf("could not parse priority %s\n", err.Error())
 		return
 	}
+	pri := models.EventPriority(priority)
 	sub := &models.Subscription{
 		UserID:          uint(id),
-		MinimumPriority: models.EventPriority(priority),
+		MinimumPriority: &pri,
 		Channel:         "messenger",
 		ChannelID:       opts.Sender.ID,
 	}

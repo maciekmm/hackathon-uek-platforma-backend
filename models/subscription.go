@@ -18,10 +18,10 @@ var (
 
 type Subscription struct {
 	gorm.Model
-	UserID          uint          `json:"user_id,omitempty"`
-	MinimumPriority EventPriority `json:"priority" gorm:"default:0"`
-	Channel         ChannelType   `json:"channel,omitempty"`
-	ChannelID       string        `json:"channel_id,omitempty"`
+	UserID          uint           `json:"user_id,omitempty"`
+	MinimumPriority *EventPriority `json:"priority" gorm:"default:0"`
+	Channel         ChannelType    `json:"channel,omitempty"`
+	ChannelID       string         `json:"channel_id,omitempty"`
 }
 
 func (s *Subscription) Add(db *gorm.DB) error {

@@ -194,6 +194,7 @@ func (c *Coordinator) checkUpdates() error {
 			continue
 		}
 		diff := old.Diff(*new)
+		pri := models.EventPriorityHigh
 		if len(diff) > 0 {
 			c.Logger.Printf("changes detected in %d-%d\n", group, 3)
 			event := &models.Event{
@@ -201,7 +202,7 @@ func (c *Coordinator) checkUpdates() error {
 				Name:                "Zmiana w planie zajęć!",
 				NotificationMessage: "Zapoznaj się z nowym planem zajęć.",
 				Description:         diff.String(),
-				Priority:            models.EventPriorityHigh,
+				Priority:            &pri,
 			}
 			if err := event.Add(c.Database, c.EventPipe); err != nil {
 				c.Logger.Printf("could not send timetable diff: %s", err.Error())
