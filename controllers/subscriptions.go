@@ -92,7 +92,7 @@ func (s *Subscriptions) HandlePatch(rw http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
-	var sub interface{}
+	sub := models.Subscription{}
 	if err := decoder.Decode(&sub); err != nil {
 		(&utils.ErrorResponse{
 			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
@@ -101,14 +101,12 @@ func (s *Subscriptions) HandlePatch(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mapSub := sub.(map[string]interface{})
-	mapSub["user_id"] = user.ID
-
+	sub.UserID = user.ID
 	model := models.Subscription{}
 	model.ID = uint(id)
 	model.UserID = user.ID
 
-	if res := s.Database.Model(&model).Updates(&mapSub); res.Error != nil {
+	if res := s.Database.Model(&model).Updates(&sub); res.Error != nil {
 		(&utils.ErrorResponse{
 			Errors:      []string{models.ErrSubscriptionsUnknown.Error()},
 			DebugErrors: []string{res.Error.Error()},

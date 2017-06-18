@@ -29,13 +29,13 @@ type EventPipe interface {
 
 type Event struct {
 	gorm.Model
-	UserID              uint          `json:"user_id"`
-	Image               string        `json:"image"`
-	Name                string        `json:"name"`
-	Description         string        `json:"description"`
-	NotificationMessage string        `json:"message"`
-	Priority            EventPriority `json:"priority"`
-	Group               *uint         `json:"group"`
+	UserID              uint          `json:"user_id,omitempty"`
+	Image               string        `json:"image,omitempty"`
+	Name                string        `json:"name,omitempty"`
+	Description         string        `json:"description,omitempty"`
+	NotificationMessage string        `json:"message,omitempty"`
+	Priority            EventPriority `json:"priority,omitempty"`
+	Group               *uint         `json:"group,omitempty"`
 }
 
 func (event *Event) Add(db *gorm.DB, coord EventPipe) error {
