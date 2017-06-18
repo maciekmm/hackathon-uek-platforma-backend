@@ -51,7 +51,7 @@ func (m *Messenger) Send(sub *models.Subscription, event *models.Event) error {
 		ImageURL: event.Image,
 		Subtitle: event.NotificationMessage,
 		Buttons: []template.Button{
-			template.NewWebURLButton("Zobacz więcej", fmt.Sprintf("https://margherita.xememah.com/#/event/%d/messenger/", event.ID)),
+			template.NewWebURLButton("Zobacz więcej", fmt.Sprintf("https://uek.kochanow.ski/#/dashboard/events/%d/messenger/", event.ID)),
 		},
 	})
 	_, err := m.messenger.SendMessage(mq)
